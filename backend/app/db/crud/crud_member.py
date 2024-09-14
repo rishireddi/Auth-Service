@@ -39,7 +39,6 @@ async def create_new_member(member: MemberCreate, db: AsyncSession) -> MemberRea
     member_internal_dict = member.model_dump()
 
     member_internal = MemberCreateInternal(**member_internal_dict)
-    print(member_internal)
     return await crud_member.create(db=db, object=member_internal)
 
 async def get_member(memberName: str, db: AsyncSession) -> Union[Dict[str, Any], Literal[None]]:

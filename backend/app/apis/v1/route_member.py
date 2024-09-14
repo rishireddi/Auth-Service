@@ -37,7 +37,7 @@ async def invite_member(
     return {"message": "Member invited successfully."}
 
 
-@router.delete("/delete_member/db_member/{memberName}")
+@router.delete("/delete_member")
 async def erase_db_member(
     request: Request,
     memberName: str,

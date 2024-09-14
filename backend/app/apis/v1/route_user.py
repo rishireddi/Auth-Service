@@ -6,6 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from fastapi import Depends, Request
 import fastapi
 from sqlalchemy import select
+from sqlmodel import update
 
 # Local Dependencies
 from app.db.crud.crud_user import crud_users, create_new_user
@@ -77,7 +78,7 @@ async def signUp(
 
     return await create_new_member(member_in, db)
 
-@router.get("/users/count-by-role")
+@router.get("/count-by-role")
 async def get_users_count_by_role(role: AccessLevelBase, db: AsyncSession = Depends(async_get_db)):
     if role not in AccessLevelBase:
         raise HTTPException(status_code=400, detail="Invalid role")
@@ -89,13 +90,38 @@ async def get_users_count_by_role(role: AccessLevelBase, db: AsyncSession = Depe
     
     return {"role": role.name, "count": user_count}
 
-@router.get("/users/count-by-organization")
-async def get_users_count_by_organization(role: AccessLevelBase, db: AsyncSession = Depends(async_get_db)):
-    if role not in AccessLevelBase:
-        raise HTTPException(status_code=400, detail="Invalid role")
-    
-    result = await db.exec(select(User).where(User.user_role == role.value))
-    users_with_role = result.all()
-    user_count = len(users_with_role)
-    
-    return {"role": role.name, "count": user_count}
+@router.patch("/change-role", status_code=200)
+async def change_user_role(
+    user_email: str,
+    new_role: AccessLevelBase,
+    db: AsyncSession = Depends(async_get_db)
+):
+    # Fetch the user from the database
+    user_result = await db.execute(select(User).where(User.email == user_email))
+    user = user_result.scalars().first()
+
+    # If user is not found, raise a 404 error
+    if not user:
+        raise HTTPException(
+            status_code=400,
+            detail="User not found"
+        )
+
+    # Validate the role
+    if new_role not in AccessLevelBase:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid role"
+        )
+
+    # Update the user's role
+    stmt = (
+        update(User)
+        .where(User.email == user_email)
+        .values(user_role=new_role.value)
+        .execution_options(synchronize_session="fetch")
+    )
+    await db.execute(stmt)
+    await db.commit()
+
+    return {"message": f"User role updated to {new_role.name}"}
